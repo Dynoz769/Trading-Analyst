@@ -22,11 +22,17 @@ document.querySelectorAll('nav button').forEach((b) => b.addEventListener('click
 
 // Settings
 const SET_KEY = 'ta-settings';
-const settings = { key: '', model: 'claude-opus-5-5', lang: 'Bahasa Melayu', balance: 1000, risk: 1, contract: 100, ...load(SET_KEY, {}) };
+const settings = { key: '', model: 'claude-opus-5-5', lang: 'Bahasa Melayu', balance: 1000, sizing: 'lot', lot: 0.01, risk: 1, contract: 100, ...load(SET_KEY, {}) };
 const setForm = $('#setForm');
 for (const [k, v] of Object.entries(settings)) if (setForm[k]) setForm[k].value = v;
+function syncSizing() {
+  setForm.lot.disabled = settings.sizing !== 'lot';
+  setForm.risk.disabled = settings.sizing === 'lot';
+}
+syncSizing();
 setForm.addEventListener('input', () => {
-  for (const el of setForm.elements) if (el.name) settings[el.name] = el.type === 'number' ? num(el.value) : el.value;
+  for (const el of setForm.elements) if (el.name) settings[el.name] = el.type === 'number' ? num(el.value) : el.value.trim();
+  syncSizing();
   store(SET_KEY, settings);
 });
 
@@ -179,7 +185,7 @@ async function analyze(meta) {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      'x-api-key': settings.key,
+      'x-api-key': settings.key.trim(),
       'anthropic-version': '2023-06-01',
       'anthropic-dangerous-direct-browser-access': 'true',
     },
@@ -193,6 +199,7 @@ async function analyze(meta) {
     }),
   });
   const body = await res.json().catch(() => ({}));
+  if (res.status === 401) throw new Error('API key tidak sah. Semak di Tetapan: key mesti bermula sk-ant-api dan dicipta di console.anthropic.com.');
   if (!res.ok) throw new Error(body.error?.message || `HTTP ${res.status}`);
   const out = body.content?.find((c) => c.type === 'tool_use')?.input;
   if (!out) throw new Error('Jawapan AI tiada data analisis.');
@@ -236,11 +243,18 @@ function checkSetup(s) {
 }
 
 function sizing(s) {
-  const riskAmt = (settings.balance * settings.risk) / 100;
   const perUnit = Math.abs(s.entry - s.sl);
-  const units = perUnit ? riskAmt / perUnit : NaN;
-  return { riskAmt, perUnit, units, lots: units / settings.contract };
+  let units, riskAmt;
+  if (settings.sizing === 'lot') {
+    units = settings.lot * settings.contract;
+    riskAmt = units * perUnit;
+  } else {
+    riskAmt = (settings.balance * settings.risk) / 100;
+    units = perUnit ? riskAmt / perUnit : NaN;
+  }
+  return { riskAmt, perUnit, units, lots: units / settings.contract, riskPct: (riskAmt / settings.balance) * 100 };
 }
+const usd = (n) => (ok(n) ? '$' + fmt(n) : '-');
 
 function ladder(s, cur) {
   const pts = [
@@ -286,10 +300,9 @@ function setupCard(s, a, i) {
       ${ladder(s, a.current_price)}
     </div>
     <dl class="stats small">
-      <div><dt>Risiko</dt><dd>${fmt(z.riskAmt)}</dd></div>
-      <div><dt>Unit</dt><dd>${fmt(z.units, 4)}</dd></div>
       <div><dt>Lot</dt><dd>${fmt(z.lots, 2)}</dd></div>
-      <div><dt>Untung di TP1</dt><dd class="up">${fmt(z.units * Math.abs(s.tp1 - s.entry))}</dd></div>
+      <div><dt>Rugi di SL</dt><dd class="down">${usd(z.riskAmt)} <small>(${fmt(z.riskPct)}%)</small></dd></div>
+      ${tps(s).map((v, k) => `<div><dt>Untung TP${k + 1}</dt><dd class="up">${usd(z.units * Math.abs(v - s.entry))}</dd></div>`).join('')}
     </dl>
     <h4>Sebab ${DIR[s.direction]}</h4>
     <ul>${(s.reasons || []).map((r) => `<li>${esc(r)}</li>`).join('')}</ul>
@@ -344,7 +357,7 @@ function setupText(s, a) {
   return [
     `${a.symbol} ${a.timeframe} ${DIR[s.direction]} ${s.order_type} (${s.confidence}%)`,
     `Entry ${s.entry} | SL ${s.sl} | ${tps(s).map((v, i) => `TP${i + 1} ${v}`).join(' | ')}`,
-    `Lot ${fmt(z.lots, 2)} | Risiko ${fmt(z.riskAmt)}`,
+    `Lot ${fmt(z.lots, 2)} | Rugi di SL ${usd(z.riskAmt)} (${fmt(z.riskPct)}%)`,
     'Sebab:', ...(s.reasons || []).map((r) => '- ' + r),
     `SL: ${s.sl_reason}`, `TP: ${s.tp_reason}`, `Batal jika: ${s.invalidation}`,
   ].join('\n');
@@ -428,7 +441,7 @@ function renderJournal() {
   renderStats($('#stats'), [
     ['Trade ditutup', `${done.length} / ${trades.length}`],
     ['Win rate', ps.length ? fmt((wins.length / ps.length) * 100, 1) + '%' : '-'],
-    ['Net P/L', fmt(net), cls(net)],
+    ['Net P/L', usd(net), cls(net)],
     ['Profit factor', gl ? fmt(gw / gl) : '-'],
     ['Purata R', rs.length ? fmt(sum(rs) / rs.length) : '-', cls(sum(rs))],
     ['Purata menang', fmt(wins.length ? gw / wins.length : 0), 'up'],
