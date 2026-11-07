@@ -1,5 +1,5 @@
 const $ = (s) => document.querySelector(s);
-const fmt = (n, d = 2) => (Number.isFinite(n) ? n.toLocaleString(undefined, { maximumFractionDigits: d }) : '-');
+const fmt = (n, d = 2) => (Number.isFinite(n) ? (Number(n.toFixed(d)) + 0).toLocaleString(undefined, { maximumFractionDigits: d }) : '-');
 const cls = (n) => (n > 0 ? 'up' : n < 0 ? 'down' : '');
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const renderStats = (el, rows) => {
