@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trading Analyst</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>Trading Analyst</h1>
+  <nav>
+    <button data-tab="size" class="active">Position size</button>
+    <button data-tab="journal">Journal</button>
+    <button data-tab="ind">Indicators</button>
+  </nav>
+</header>
+
+<main>
+<section id="size" class="tab active">
+  <form id="sizeForm" class="grid">
+    <label>Balance<input name="balance" type="number" step="any" value="10000"></label>
+    <label>Risk %<input name="risk" type="number" step="any" value="1"></label>
+    <label>Entry<input name="entry" type="number" step="any" value="100"></label>
+    <label>Stop loss<input name="stop" type="number" step="any" value="95"></label>
+    <label>Take profit<input name="target" type="number" step="any" value="110"></label>
+  </form>
+  <dl id="sizeOut" class="stats"></dl>
+</section>
+
+<section id="journal" class="tab">
+  <form id="tradeForm" class="grid">
+    <label>Date<input name="date" type="date" required></label>
+    <label>Symbol<input name="symbol" required placeholder="BTCUSD"></label>
+    <label>Side<select name="side"><option>long</option><option>short</option></select></label>
+    <label>Entry<input name="entry" type="number" step="any" required></label>
+    <label>Exit<input name="exit" type="number" step="any" required></label>
+    <label>Size<input name="size" type="number" step="any" required></label>
+    <label>Fees<input name="fees" type="number" step="any" value="0"></label>
+    <label class="wide">Notes<input name="notes"></label>
+    <button type="submit">Add trade</button>
+  </form>
+  <dl id="stats" class="stats"></dl>
+  <canvas id="equity" height="180"></canvas>
+  <div class="row">
+    <button id="exportCsv">Export CSV</button>
+    <label class="file">Import CSV<input id="importCsv" type="file" accept=".csv"></label>
+  </div>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Date</th><th>Symbol</th><th>Side</th><th>Entry</th><th>Exit</th><th>Size</th><th>P/L</th><th>Notes</th><th></th></tr></thead>
+      <tbody id="trades"></tbody>
+    </table>
+  </div>
+</section>
+
+<section id="ind" class="tab">
+  <form id="indForm" class="grid">
+    <label class="wide">Closing prices (oldest first, comma or newline separated)
+      <textarea name="prices" rows="5">100,101,102,101,103,104,106,105,107,108,110,109,111,112,111,113,115,114,116,118</textarea>
+    </label>
+    <label>SMA period<input name="sma" type="number" value="10" min="1"></label>
+    <label>EMA period<input name="ema" type="number" value="10" min="1"></label>
+    <label>RSI period<input name="rsi" type="number" value="14" min="1"></label>
+  </form>
+  <dl id="indOut" class="stats"></dl>
+</section>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
